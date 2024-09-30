@@ -31,7 +31,7 @@ Vous pouvez installer ces bibliothèques à l'aide de `pip`.
 1. Clonez le dépôt Git sur votre machine locale :
 
    
-   git clone https://github.com/tonutilisateur/cheetah-cost.git
+   git clone https://github.com/santana64/cheetah-cost.git
    cd cheetah-cost
 
 
