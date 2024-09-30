@@ -21,8 +21,7 @@
    - `PyQt5`
    - `matplotlib`
    - `pandas`
-   - `python-docx`
-   - `qt_material`
+  
 
 Vous pouvez installer ces bibliothèques à l'aide de `pip`.
 
