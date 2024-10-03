@@ -371,7 +371,7 @@ class ProjectAnalysisScreen(QWidget):
                         table.cell(row, col).text = item.text() if item else ""
 
                 doc.save(path)
-                QMessageBox.information(self, "Export Réussi", f"Tableau exporté avec succès vers {path}")
+                QMessageBox.information(self, "Export Réussie", f"Tableau exporté avec succès vers {path}")
             except Exception as e:
                 QMessageBox.critical(self, "Erreur", f"Erreur lors de l'exportation: {e}")
 
