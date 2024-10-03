@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QTabWidget,
     QLineEdit, QComboBox, QDateEdit, QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QHBoxLayout, QToolBar, QAction, QFileDialog
+    QHBoxLayout, QToolButton, QMenu, QAction, QFileDialog
 )
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import Qt, QDate
@@ -12,12 +12,14 @@ from qt_material import apply_stylesheet
 import pandas as pd
 from docx import Document
 
+
 class RoleManager:
     def __init__(self):
         self.user_role = "Admin"  # Rôle par défaut : Admin
 
     def is_admin(self):
         return self.user_role == "Admin"
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -67,10 +69,12 @@ class MainWindow(QMainWindow):
     def return_to_main_menu(self):
         self.init_ui()
 
+
 class ProjectCreationScreen(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
+        self.bip_dates = []  # Liste pour stocker les dates BiP ajoutées
         self.init_ui()
 
     def init_ui(self):
@@ -135,6 +139,12 @@ class ProjectCreationScreen(QWidget):
         self.additional_period_button.clicked.connect(self.add_additional_period)
         additional_period_layout.addWidget(self.additional_period_button, alignment=Qt.AlignCenter)
 
+        # Ajout de la table pour visualiser les périodes supplémentaires (BIPs)
+        self.bip_table = QTableWidget(0, 1)  # Table de BIP avec 1 colonne (dates)
+        self.bip_table.setHorizontalHeaderLabels(["Dates BiP"])
+        self.bip_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        additional_period_layout.addWidget(self.bip_table)
+
         additional_period_tab.setLayout(additional_period_layout)
         self.tab_widget.addTab(additional_period_tab, "Périodes Supplémentaires")
 
@@ -167,8 +177,17 @@ class ProjectCreationScreen(QWidget):
             QMessageBox.warning(self, "Accès refusé", "Seul l'administrateur peut créer un projet.")
 
     def add_additional_period(self):
-        QMessageBox.information(self, "Période Supplémentaire",
-                                f"Nouvelle période ajoutée: {self.bip_date_input.date().toString(Qt.ISODate)}")
+        # Ajout de validation pour les dates BiP
+        bip_date = self.bip_date_input.date().toString(Qt.ISODate)
+
+        if bip_date in self.bip_dates:
+            QMessageBox.warning(self, "Erreur", "Une période avec cette date existe déjà.")
+        else:
+            self.bip_dates.append(bip_date)  # Ajoute la date à la liste des BiP
+            row_position = self.bip_table.rowCount()
+            self.bip_table.insertRow(row_position)
+            self.bip_table.setItem(row_position, 0, QTableWidgetItem(bip_date))
+            QMessageBox.information(self, "Période Supplémentaire", f"Nouvelle période ajoutée: {bip_date}")
 
     def go_previous(self):
         self.main_window.return_to_main_menu()
@@ -177,6 +196,7 @@ class ProjectCreationScreen(QWidget):
         current_index = self.tab_widget.currentIndex()
         if current_index < self.tab_widget.count() - 1:
             self.tab_widget.setCurrentIndex(current_index + 1)
+
 
 class ProjectAnalysisScreen(QWidget):
     def __init__(self, main_window):
@@ -187,38 +207,26 @@ class ProjectAnalysisScreen(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        # Barre d'outils
+        # Barre d'outils avec liste déroulante
         toolbar_layout = QHBoxLayout()
+        dropdown_button = QToolButton(self)
+        dropdown_button.setText("Gestion des Lignes")
+        dropdown_button.setPopupMode(QToolButton.InstantPopup)
 
-        # Bouton Annuler
-        undo_button = QPushButton("Annuler")
-        undo_button.clicked.connect(self.undo_action)
-        toolbar_layout.addWidget(undo_button)
+        # Créer le menu
+        dropdown_menu = QMenu(self)
 
-        # Bouton Refaire
-        redo_button = QPushButton("Refaire")
-        redo_button.clicked.connect(self.redo_action)
-        toolbar_layout.addWidget(redo_button)
+        # Ajout des actions dans la liste déroulante
+        add_row_action = QAction("Ajouter Ligne", self)
+        add_row_action.triggered.connect(self.add_row)
+        dropdown_menu.addAction(add_row_action)
 
-        # Bouton Gras
-        bold_button = QPushButton("Gras")
-        bold_button.clicked.connect(self.bold_text)
-        toolbar_layout.addWidget(bold_button)
+        remove_row_action = QAction("Supprimer Ligne", self)
+        remove_row_action.triggered.connect(self.remove_row)
+        dropdown_menu.addAction(remove_row_action)
 
-        # Bouton Italique
-        italic_button = QPushButton("Italique")
-        italic_button.clicked.connect(self.italic_text)
-        toolbar_layout.addWidget(italic_button)
-
-        # Bouton Somme
-        sum_button = QPushButton("Somme")
-        sum_button.clicked.connect(self.calculate_sum)
-        toolbar_layout.addWidget(sum_button)
-
-        # Bouton Imprimer
-        print_button = QPushButton("Imprimer")
-        print_button.clicked.connect(self.print_table)
-        toolbar_layout.addWidget(print_button)
+        dropdown_button.setMenu(dropdown_menu)
+        toolbar_layout.addWidget(dropdown_button)
 
         # Bouton Exporter en Word
         export_word_button = QPushButton("Exporter en Word")
@@ -230,13 +238,18 @@ class ProjectAnalysisScreen(QWidget):
         back_button.clicked.connect(self.main_window.return_to_main_menu)
         toolbar_layout.addWidget(back_button)
 
+        # Bouton Nouvelle Page
+        new_page_button = QPushButton("Nouvelle Page")
+        new_page_button.clicked.connect(self.create_new_table_page)
+        toolbar_layout.addWidget(new_page_button)
+
         # Spacer pour aligner les boutons à gauche
         toolbar_layout.addStretch()
 
         layout.addLayout(toolbar_layout)
 
         # Tableau
-        self.table_widget = QTableWidget(5, 12)
+        self.table_widget = QTableWidget(5, 12)  # Initialement 5 lignes, maximum 20
         self.table_widget.setHorizontalHeaderLabels([
             "Nom", "Coût Estimé", "Coût Réel", "Reste à Faire", "Budget Initial",
             "Budget à Date", "Dépenses Réelles", "Valeur Acquise", "Écart", "RàF",
@@ -260,95 +273,26 @@ class ProjectAnalysisScreen(QWidget):
 
         self.setLayout(layout)
 
-    def undo_action(self):
-        QMessageBox.information(self, "Annuler", "Action Annuler (non implémentée)")
+    def create_new_table_page(self):
+        self.new_window = QMainWindow()
+        self.new_window.setWindowTitle("Nouvelle Page - Cheetah Cost")
+        self.new_window.setGeometry(150, 150, 1200, 800)
 
-    def redo_action(self):
-        QMessageBox.information(self, "Refaire", "Action Refaire (non implémentée)")
+        new_page_widget = ProjectAnalysisScreen(self.main_window)  # Nouvelle instance de ProjectAnalysisScreen
+        self.new_window.setCentralWidget(new_page_widget)
+        self.new_window.show()
 
-    def bold_text(self):
-        selected_items = self.table_widget.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Aucun Sélection", "Veuillez sélectionner des cellules à mettre en gras.")
-            return
-        for item in selected_items:
-            font = item.font()
-            font.setBold(True)
-            item.setFont(font)
+    def add_row(self):
+        if self.table_widget.rowCount() < 20:
+            self.table_widget.insertRow(self.table_widget.rowCount())
+        else:
+            QMessageBox.warning(self, "Limite atteinte", "Vous ne pouvez pas ajouter plus de 20 lignes.")
 
-    def italic_text(self):
-        selected_items = self.table_widget.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Aucun Sélection", "Veuillez sélectionner des cellules à mettre en italique.")
-            return
-        for item in selected_items:
-            font = item.font()
-            font.setItalic(True)
-            item.setFont(font)
-
-    def calculate_sum(self):
-        selected_items = self.table_widget.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "Aucun Sélection", "Veuillez sélectionner des cellules pour calculer la somme.")
-            return
-        total = 0
-        for item in selected_items:
-            try:
-                total += float(item.text())
-            except ValueError:
-                pass
-        QMessageBox.information(self, "Somme", f"Somme des cellules sélectionnées: {total}")
-
-    def print_table(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Enregistrer en Excel", "", "Fichiers Excel (*.xlsx)")
-        if path:
-            self.export_to_excel(path)
-
-    def export_to_excel(self, path):
-        try:
-            row_count = self.table_widget.rowCount()
-            col_count = self.table_widget.columnCount()
-            data = []
-
-            headers = [self.table_widget.horizontalHeaderItem(col).text() for col in range(col_count)]
-            data.append(headers)
-
-            for row in range(row_count):
-                row_data = []
-                for col in range(col_count):
-                    item = self.table_widget.item(row, col)
-                    row_data.append(item.text() if item else "")
-                data.append(row_data)
-
-            df = pd.DataFrame(data[1:], columns=data[0])
-            df.to_excel(path, index=False)
-            QMessageBox.information(self, "Export Réussi", f"Tableau exporté avec succès vers {path}")
-        except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Erreur lors de l'exportation: {e}")
-
-    def export_table_to_word(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Enregistrer en Word", "", "Fichiers Word (*.docx)")
-        if path:
-            try:
-                doc = Document()
-
-                row_count = self.table_widget.rowCount()
-                col_count = self.table_widget.columnCount()
-
-                table = doc.add_table(rows=row_count + 1, cols=col_count)
-
-                for col in range(col_count):
-                    table.cell(0, col).text = self.table_widget.horizontalHeaderItem(col).text()
-
-                for row in range(1, row_count + 1):
-                    for col in range(col_count):
-                        item = self.table_widget.item(row - 1, col)
-                        table.cell(row, col).text = item.text() if item else ""
-
-                doc.save(path)
-                QMessageBox.information(self, "Export Réussi", f"Tableau exporté avec succès vers {path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Erreur", f"Erreur lors de l'exportation: {e}")
+    def remove_row(self):
+        if self.table_widget.rowCount() > 1:
+            self.table_widget.removeRow(self.table_widget.rowCount() - 1)
+        else:
+            QMessageBox.warning(self, "Limite atteinte", "Il doit rester au moins une ligne.")
 
     def calculate_costs(self):
         try:
@@ -406,6 +350,30 @@ class ProjectAnalysisScreen(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de la génération des courbes en S: {e}")
+
+    def export_table_to_word(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Enregistrer en Word", "", "Fichiers Word (*.docx)")
+        if path:
+            try:
+                doc = Document()
+
+                row_count = self.table_widget.rowCount()
+                col_count = self.table_widget.columnCount()
+
+                table = doc.add_table(rows=row_count + 1, cols=col_count)
+
+                for col in range(col_count):
+                    table.cell(0, col).text = self.table_widget.horizontalHeaderItem(col).text()
+
+                for row in range(1, row_count + 1):
+                    for col in range(col_count):
+                        item = self.table_widget.item(row - 1, col)
+                        table.cell(row, col).text = item.text() if item else ""
+
+                doc.save(path)
+                QMessageBox.information(self, "Export Réussi", f"Tableau exporté avec succès vers {path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Erreur", f"Erreur lors de l'exportation: {e}")
 
     def get_table_value(self, row, column):
         item = self.table_widget.item(row, column)
