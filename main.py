@@ -46,7 +46,7 @@ EMAIL_USER = "votre_email@gmail.com"
 
 EMAIL_PASSWORD = "votre_mot_de_passe"
 
-EMAIL_RECEIVER = "destinataire@gmail.com"
+EMAIL_RECEIVER = "destinatairre@gmail.com"
 
 
 
