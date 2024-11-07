@@ -70,7 +70,7 @@ class MainWindow(QMainWindow):
         add_row_action.triggered.connect(lambda: self.project_analysis_screen.add_row())
         edit_menu.addAction(add_row_action)
 
-        remove_row_action = QAction("Supprimé Ligne", self)
+        remove_row_action = QAction("Supprimer Ligne", self)
         remove_row_action.triggered.connect(lambda: self.project_analysis_screen.remove_row())
         edit_menu.addAction(remove_row_action)
 
